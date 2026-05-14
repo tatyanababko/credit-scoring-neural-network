@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Кредитный скоринг</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="header">
+  <div class="container">
+    <div class="header-content">
+      <div>
+        <h1>Система кредитного скоринга</h1>
+        <p class="subtitle">Нейросетевая модель оценки кредитоспособности · TensorFlow / Keras</p>
+      </div>
+      <nav class="nav">
+        <a href="/" class="nav-link active">Скоринг</a>
+        <a href="/dashboard" class="nav-link">Дашборд</a>
+        <a href="/comparison" class="nav-link">Сравнение</a>
+        <a href="/features" class="nav-link">Признаки</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Информационная панель модели -->
+  <div class="model-info">
+    <div class="info-card">
+      <div class="info-label">ROC-AUC</div>
+      <div class="info-value">{{ "%.4f"|format(metadata.metrics.roc_auc) }}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-label">Gini</div>
+      <div class="info-value">{{ "%.4f"|format(metadata.metrics.gini) }}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-label">F1-score</div>
+      <div class="info-value">{{ "%.4f"|format(metadata.metrics.f1_class_1) }}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-label">Порог</div>
+      <div class="info-value">{{ "%.2f"|format(threshold) }}</div>
+    </div>
+    <div class="info-card">
+      <div class="info-label">Версия</div>
+      <div class="info-value">{{ metadata.version }}</div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- Форма заявки -->
+    <div class="form-section">
+      <h2>Заявка на кредит</h2>
+      <form id="scoring-form">
+
+        <fieldset>
+          <legend>Доходы клиента (руб./мес.)</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="ежемесячный_платеж">Ежемесячный доход (зарплата)</label>
+              <input type="number" id="ежемесячный_платеж" name="ежемесячный_платеж" value="500000" min="0" step="1000">
+            </div>
+            <div class="form-field">
+              <label for="пенсия">Пенсия</label>
+              <input type="number" id="пенсия" name="пенсия" value="0" min="0" step="1000">
+            </div>
+            <div class="form-field">
+              <label for="дополнительный_доход">Дополнительный доход</label>
+              <input type="number" id="дополнительный_доход" name="дополнительный_доход" value="0" min="0" step="1000">
+            </div>
+            <div class="form-field">
+              <label for="директорские_выплаты">Директорские выплаты</label>
+              <input type="number" id="директорские_выплаты" name="директорские_выплаты" value="0" min="0" step="1000">
+            </div>
+            <div class="form-field">
+              <label for="региональные_выплаты">Региональные выплаты</label>
+              <input type="number" id="региональные_выплаты" name="региональные_выплаты" value="0" min="0" step="1000">
+            </div>
+            <div class="form-field">
+              <label for="неофициальный_доход">Неофициальный доход</label>
+              <input type="number" id="неофициальный_доход" name="неофициальный_доход" value="0" min="0" step="1000">
+            </div>
+            <div class="form-field">
+              <label for="перепродажа_товаров">Доход от перепродажи</label>
+              <input type="number" id="перепродажа_товаров" name="перепродажа_товаров" value="0" min="0" step="1000">
+            </div>
+            <div class="form-field">
+              <label for="оценка_автомобиля">Стоимость автомобиля</label>
+              <input type="number" id="оценка_автомобиля" name="оценка_автомобиля" value="0" min="0" step="10000">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Кредитная карта</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="лимит_карты">Кредитный лимит</label>
+              <input type="number" id="лимит_карты" name="лимит_карты" value="0" min="0" step="10000">
+            </div>
+            <div class="form-field">
+              <label for="свободный_лимит">Свободный лимит</label>
+              <input type="number" id="свободный_лимит" name="свободный_лимит" value="0" min="0" step="10000">
+            </div>
+            <div class="form-field">
+              <label for="card">История погашения по карте</label>
+              <select id="card" name="card">
+                <option value="702">Хорошая (702)</option>
+                <option value="701">Плохая (701)</option>
+                <option value="700">Карта отсутствует (700)</option>
+                <option value="704" selected>Не проверялось (704)</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Проверки безопасности</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="blacklist">Чёрный список</label>
+              <select id="blacklist" name="blacklist">
+                <option value="900" selected>Пройдено (900)</option>
+                <option value="901">Отказ (901)</option>
+                <option value="-1">Нет данных</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="age_check">Проверка возраста</label>
+              <select id="age_check" name="age_check">
+                <option value="900" selected>Пройдено (900)</option>
+                <option value="901">Отказ (901)</option>
+                <option value="-1">Нет данных</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="criminal">Криминальное прошлое</label>
+              <select id="criminal" name="criminal">
+                <option value="900" selected>Пройдено (900)</option>
+                <option value="901">Отказ (901)</option>
+                <option value="-1">Нет данных</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="client_score">Оценка клиента</label>
+              <select id="client_score" name="client_score">
+                <option value="900" selected>Пройдено (900)</option>
+                <option value="901">Отказ (901)</option>
+                <option value="-1">Нет данных</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Дополнительная информация</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="платёжеспособность">Платёжеспособность (0–100%)</label>
+              <input type="number" id="платёжеспособность" name="платёжеспособность" value="100" min="0" max="100" step="1">
+            </div>
+            <div class="form-field">
+              <label for="pensioner">Статус пенсионера</label>
+              <select id="pensioner" name="pensioner">
+                <option value="802" selected>Не пенсионер (802)</option>
+                <option value="801">Пенсионер (801)</option>
+                <option value="803">По инвалидности (803)</option>
+                <option value="804">Не проверялось (804)</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="has_contract">Действующий договор</label>
+              <select id="has_contract" name="has_contract">
+                <option value="0" selected>Нет</option>
+                <option value="1">Есть</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="button-row">
+          <button type="submit" class="btn-primary">
+            Рассчитать скоринг
+          </button>
+          <button type="reset" class="btn-secondary">Сбросить</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Результат -->
+    <div class="result-section">
+      <div id="result-placeholder" class="result-placeholder">
+        <div class="placeholder-icon">📊</div>
+        <p>Заполните форму и нажмите<br><strong>«Рассчитать скоринг»</strong></p>
+        <p class="hint">Модель проанализирует {{ metadata.n_features }} признаков и определит вероятность одобрения кредита</p>
+      </div>
+
+      <div id="result-content" class="result-content" style="display:none;">
+        <h2>Результат скоринга</h2>
+
+        <div id="decision-card" class="decision-card">
+          <div class="decision-label">Решение</div>
+          <div id="decision-text" class="decision-text">—</div>
+        </div>
+
+        <div class="probability-section">
+          <div class="probability-label">Вероятность одобрения</div>
+          <div id="probability-value" class="probability-value">0%</div>
+          <div class="probability-bar">
+            <div id="probability-fill" class="probability-fill"></div>
+            <div class="threshold-marker" style="left: {{ (threshold * 100)|round(1) }}%;">
+              <span>Порог</span>
+            </div>
+          </div>
+          <div class="probability-scale">
+            <span>0%</span>
+            <span>50%</span>
+            <span>100%</span>
+          </div>
+        </div>
+
+        <div class="decision-thresholds">
+          <h3>Шкала принятия решений</h3>
+          <div class="threshold-item danger">
+            <span class="threshold-range">0% – 20%</span>
+            <span class="threshold-action">Автоматический отказ</span>
+          </div>
+          <div class="threshold-item warning">
+            <span class="threshold-range">20% – {{ (threshold * 100)|round(0)|int }}%</span>
+            <span class="threshold-action">На рассмотрение эксперта</span>
+          </div>
+          <div class="threshold-item success-light">
+            <span class="threshold-range">{{ (threshold * 100)|round(0)|int }}% – 75%</span>
+            <span class="threshold-action">Одобрено</span>
+          </div>
+          <div class="threshold-item success">
+            <span class="threshold-range">75% – 100%</span>
+            <span class="threshold-action">Автоматическое одобрение</span>
+          </div>
+        </div>
+
+        <div id="timestamp" class="timestamp"></div>
+      </div>
+
+      <div id="error-message" class="error-message" style="display:none;"></div>
+    </div>
+  </div>
+
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>Кредитный скоринг · Нейронная сеть {{ metadata.n_features }}-{{ metadata.hyperparameters.units_1 }}-{{ metadata.hyperparameters.units_2 }}-{{ metadata.hyperparameters.units_3 }}-1 · TensorFlow {{ metadata.tensorflow_version }}</p>
+  </div>
+</footer>
+
+<script>
+document.getElementById('scoring-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+
+  // UI: loading
+  const submitBtn = this.querySelector('.btn-primary');
+  const originalText = submitBtn.textContent;
+  submitBtn.textContent = 'Расчёт...';
+  submitBtn.disabled = true;
+
+  try {
+    const response = await fetch('/predict', { method: 'POST', body: formData });
+    const data = await response.json();
+
+    if (data.success) {
+      const r = data.result;
+      document.getElementById('result-placeholder').style.display = 'none';
+      document.getElementById('error-message').style.display = 'none';
+      document.getElementById('result-content').style.display = 'block';
+
+      const decisionCard = document.getElementById('decision-card');
+      decisionCard.className = 'decision-card decision-' + r.decision_class;
+      document.getElementById('decision-text').textContent = r.decision_label;
+
+      document.getElementById('probability-value').textContent = r.probability_pct + '%';
+      const fill = document.getElementById('probability-fill');
+      fill.style.width = r.probability_pct + '%';
+      fill.className = 'probability-fill fill-' + r.decision_class;
+
+      document.getElementById('timestamp').textContent = 'Время расчёта: ' + r.timestamp;
+    } else {
+      document.getElementById('result-placeholder').style.display = 'none';
+      document.getElementById('result-content').style.display = 'none';
+      const errEl = document.getElementById('error-message');
+      errEl.style.display = 'block';
+      errEl.textContent = 'Ошибка: ' + data.error;
+    }
+  } catch (err) {
+    alert('Ошибка соединения: ' + err.message);
+  } finally {
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+  }
+});
+</script>
+
+</body>
+</html>
