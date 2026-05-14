@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+env/
+.venv/
+
+# Обученные модели и артефакты (большие файлы)
+models/*.keras
+models/*.joblib
+models/*.h5
+
+# Графики признаков (генерируются скриптом)
+static/feature_plots/
+
+# Исходный датасет (большой файл, не для GitHub)
+Скоринг.csv
+*.csv
+
+# IDE и редакторы
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Прочее
+*.log
+.pytest_cache/
