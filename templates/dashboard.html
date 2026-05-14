@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Дашборд — Кредитный скоринг</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="header">
+  <div class="container">
+    <div class="header-content">
+      <div>
+        <h1>Дашборд модели</h1>
+        <p class="subtitle">Метрики качества и история скоринговых решений</p>
+      </div>
+      <nav class="nav">
+        <a href="/" class="nav-link">Скоринг</a>
+        <a href="/dashboard" class="nav-link active">Дашборд</a>
+        <a href="/comparison" class="nav-link">Сравнение</a>
+        <a href="/features" class="nav-link">Признаки</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Метрики модели -->
+  <section class="section">
+    <h2>Качество модели на тестовой выборке</h2>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">ROC-AUC</div>
+        <div class="metric-value">{{ "%.4f"|format(metadata.metrics.roc_auc) }}</div>
+        <div class="metric-desc">Площадь под ROC-кривой</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Gini</div>
+        <div class="metric-value">{{ "%.4f"|format(metadata.metrics.gini) }}</div>
+        <div class="metric-desc">Коэффициент Джини</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">KS</div>
+        <div class="metric-value">{{ "%.4f"|format(metadata.metrics.ks) }}</div>
+        <div class="metric-desc">Колмогорова-Смирнова</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Accuracy</div>
+        <div class="metric-value">{{ "%.4f"|format(metadata.metrics.accuracy) }}</div>
+        <div class="metric-desc">Доля правильных ответов</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">F1-score</div>
+        <div class="metric-value">{{ "%.4f"|format(metadata.metrics.f1_class_1) }}</div>
+        <div class="metric-desc">Гармоническое P и R</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Precision</div>
+        <div class="metric-value">{{ "%.4f"|format(metadata.metrics.precision_class_1) }}</div>
+        <div class="metric-desc">Точность класса 1</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Recall</div>
+        <div class="metric-value">{{ "%.4f"|format(metadata.metrics.recall_class_1) }}</div>
+        <div class="metric-desc">Полнота класса 1</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Порог</div>
+        <div class="metric-value">{{ "%.2f"|format(metadata.threshold) }}</div>
+        <div class="metric-desc">Оптимальный по F1</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Краткое сравнение моделей -->
+  {% if comparison %}
+  <section class="section">
+    <div class="section-header">
+      <h2>Сравнение с альтернативными моделями</h2>
+      <a href="/comparison" class="link-detail">Подробнее →</a>
+    </div>
+    <div class="mini-compare">
+      {% for m in comparison.models[:5] %}
+      <div class="mini-compare-row {% if m.is_main %}mini-compare-main{% endif %}">
+        <div class="mc-rank">
+          {% if m.rank == 1 %}🥇{% elif m.rank == 2 %}🥈{% elif m.rank == 3 %}🥉{% else %}{{ m.rank }}{% endif %}
+        </div>
+        <div class="mc-name">
+          {{ m.short_name }}
+          {% if m.is_main %}<span class="badge-mini badge-info">наша</span>{% endif %}
+        </div>
+        <div class="mc-bar-container">
+          {% set min_auc = comparison.models|map(attribute='metrics.roc_auc')|min %}
+          {% set max_auc = comparison.models|map(attribute='metrics.roc_auc')|max %}
+          {% set range = (max_auc - min_auc) if (max_auc - min_auc) > 0 else 1 %}
+          {% set width = ((m.metrics.roc_auc - min_auc) / range * 80 + 20)|round(1) %}
+          <div class="mc-bar-fill {% if m.is_main %}fill-main{% endif %}" style="width: {{ width }}%;"></div>
+        </div>
+        <div class="mc-auc">{{ "%.4f"|format(m.metrics.roc_auc) }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- Параметры обучения и архитектура -->
+  <section class="section">
+    <h2>Параметры модели</h2>
+    <div class="two-col">
+      <div class="info-block">
+        <h3>Архитектура нейронной сети</h3>
+        <table class="info-table">
+          <tr><td>Входной слой</td><td>{{ metadata.n_features }} нейронов</td></tr>
+          <tr><td>Скрытый слой 1</td><td>{{ metadata.hyperparameters.units_1 }} (ReLU + BN + Dropout {{ "%.2f"|format(metadata.hyperparameters.dropout_1) }})</td></tr>
+          <tr><td>Скрытый слой 2</td><td>{{ metadata.hyperparameters.units_2 }} (ReLU + BN + Dropout {{ "%.2f"|format(metadata.hyperparameters.dropout_2) }})</td></tr>
+          <tr><td>Скрытый слой 3</td><td>{{ metadata.hyperparameters.units_3 }} (ReLU + Dropout {{ "%.2f"|format(metadata.hyperparameters.dropout_3) }})</td></tr>
+          <tr><td>Выходной слой</td><td>1 нейрон (Sigmoid)</td></tr>
+          <tr><td>Оптимизатор</td><td>Adam (LR = {{ metadata.hyperparameters.lr }})</td></tr>
+          <tr><td>L2-регуляризация</td><td>{{ metadata.hyperparameters.l2_reg }}</td></tr>
+        </table>
+      </div>
+      <div class="info-block">
+        <h3>Обучение</h3>
+        <table class="info-table">
+          <tr><td>TensorFlow</td><td>{{ metadata.tensorflow_version }}</td></tr>
+          <tr><td>Версия модели</td><td>{{ metadata.version }}</td></tr>
+          <tr><td>Дата обучения</td><td>{{ metadata.created_at }}</td></tr>
+          <tr><td>Эпох выполнено</td><td>{{ metadata.training.epochs_run }}</td></tr>
+          <tr><td>Время обучения</td><td>{{ metadata.training.training_time_sec }} сек</td></tr>
+          <tr><td>Обучающая выборка</td><td>{{ "{:,}".format(metadata.training.samples_train).replace(",", " ") }}</td></tr>
+          <tr><td>Валидационная выборка</td><td>{{ "{:,}".format(metadata.training.samples_val).replace(",", " ") }}</td></tr>
+          <tr><td>Тестовая выборка</td><td>{{ "{:,}".format(metadata.training.samples_test).replace(",", " ") }}</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Матрица ошибок -->
+  <section class="section">
+    <h2>Матрица ошибок</h2>
+    <div class="confusion-matrix">
+      <div class="cm-header"></div>
+      <div class="cm-header">Пред. reject (0)</div>
+      <div class="cm-header">Пред. confirmed (1)</div>
+      <div class="cm-header">Ист. reject (0)</div>
+      <div class="cm-cell cm-tn">
+        <div class="cm-label">TN</div>
+        <div class="cm-value">{{ "{:,}".format(metadata.metrics.confusion_matrix.TN).replace(",", " ") }}</div>
+      </div>
+      <div class="cm-cell cm-fp">
+        <div class="cm-label">FP</div>
+        <div class="cm-value">{{ "{:,}".format(metadata.metrics.confusion_matrix.FP).replace(",", " ") }}</div>
+      </div>
+      <div class="cm-header">Ист. confirmed (1)</div>
+      <div class="cm-cell cm-fn">
+        <div class="cm-label">FN</div>
+        <div class="cm-value">{{ "{:,}".format(metadata.metrics.confusion_matrix.FN).replace(",", " ") }}</div>
+      </div>
+      <div class="cm-cell cm-tp">
+        <div class="cm-label">TP</div>
+        <div class="cm-value">{{ "{:,}".format(metadata.metrics.confusion_matrix.TP).replace(",", " ") }}</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Статистика заявок -->
+  <section class="section">
+    <h2>Статистика обработанных заявок</h2>
+    <div class="stats-grid">
+      <div class="stat-card stat-info">
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">Всего заявок</div>
+      </div>
+      <div class="stat-card stat-success">
+        <div class="stat-value">{{ stats.approve }}</div>
+        <div class="stat-label">Одобрено</div>
+      </div>
+      <div class="stat-card stat-warning">
+        <div class="stat-value">{{ stats.review }}</div>
+        <div class="stat-label">На рассмотрение</div>
+      </div>
+      <div class="stat-card stat-danger">
+        <div class="stat-value">{{ stats.auto_reject }}</div>
+        <div class="stat-label">Отказано</div>
+      </div>
+      <div class="stat-card stat-neutral">
+        <div class="stat-value">{{ stats.avg_probability }}%</div>
+        <div class="stat-label">Средняя вероятность</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- История -->
+  <section class="section">
+    <h2>История последних заявок</h2>
+    {% if history %}
+    <table class="history-table">
+      <thead>
+        <tr><th>Время</th><th>Вероятность</th><th>Решение</th></tr>
+      </thead>
+      <tbody>
+        {% for h in history %}
+        <tr>
+          <td>{{ h.timestamp }}</td>
+          <td>
+            <div class="prob-cell">
+              <div class="prob-bar-mini">
+                <div class="prob-bar-mini-fill fill-{{ h.decision_class }}" style="width: {{ h.probability_pct }}%;"></div>
+              </div>
+              <span>{{ h.probability_pct }}%</span>
+            </div>
+          </td>
+          <td><span class="badge badge-{{ h.decision_class }}">{{ h.decision_label }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">История пуста. Подайте первую заявку на странице <a href="/">«Скоринг»</a>.</p>
+    {% endif %}
+  </section>
+
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>Кредитный скоринг · Нейронная сеть · TensorFlow {{ metadata.tensorflow_version }}</p>
+  </div>
+</footer>
+
+</body>
+</html>

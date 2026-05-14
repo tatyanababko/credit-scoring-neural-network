@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Сравнительный анализ — Кредитный скоринг</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="header">
+  <div class="container">
+    <div class="header-content">
+      <div>
+        <h1>Сравнительный анализ моделей</h1>
+        <p class="subtitle">Нейронная сеть vs. альтернативные методы машинного обучения</p>
+      </div>
+      <nav class="nav">
+        <a href="/" class="nav-link">Скоринг</a>
+        <a href="/dashboard" class="nav-link">Дашборд</a>
+        <a href="/comparison" class="nav-link active">Сравнение</a>
+        <a href="/features" class="nav-link">Признаки</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Сводка -->
+  <section class="section">
+    <h2>Итоги сравнения</h2>
+    <div class="summary-cards">
+      <div class="summary-card summary-winner">
+        <div class="summary-label">🏆 Победитель</div>
+        <div class="summary-value">{{ comparison.summary.best_model }}</div>
+        <div class="summary-desc">ROC-AUC = {{ "%.4f"|format(comparison.summary.best_roc_auc) }}</div>
+      </div>
+      <div class="summary-card summary-info">
+        <div class="summary-label">Преимущество нейросети</div>
+        <div class="summary-value">
+          {% set d = comparison.summary.nn_advantage_over_best_alt %}
+          {% if d >= 0 %}+{% endif %}{{ "%.4f"|format(d) }}
+        </div>
+        <div class="summary-desc">по сравнению с {{ comparison.summary.best_alternative }}</div>
+      </div>
+      <div class="summary-card summary-neutral">
+        <div class="summary-label">Тестовых наблюдений</div>
+        <div class="summary-value">{{ "{:,}".format(comparison.test_samples).replace(",", " ") }}</div>
+        <div class="summary-desc">сравнение проведено на одинаковых данных</div>
+      </div>
+      <div class="summary-card summary-neutral">
+        <div class="summary-label">Моделей сравнено</div>
+        <div class="summary-value">{{ comparison.models|length }}</div>
+        <div class="summary-desc">{{ comparison.created_at }}</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Таблица сравнения -->
+  <section class="section">
+    <h2>Детальные метрики (тестовая выборка)</h2>
+    <div class="table-wrapper">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Модель</th>
+            <th>ROC-AUC</th>
+            <th>Gini</th>
+            <th>KS</th>
+            <th>F1</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>Accuracy</th>
+            <th>Время</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in comparison.models %}
+          <tr class="{% if m.is_main %}main-row{% endif %}">
+            <td>
+              {% if m.rank == 1 %}🥇{% elif m.rank == 2 %}🥈{% elif m.rank == 3 %}🥉{% else %}{{ m.rank }}{% endif %}
+            </td>
+            <td>
+              <strong>{{ m.short_name }}</strong>
+              {% if m.is_main %}<span class="badge-mini badge-info">наша модель</span>{% endif %}
+            </td>
+            <td><strong>{{ "%.4f"|format(m.metrics.roc_auc) }}</strong></td>
+            <td>{{ "%.4f"|format(m.metrics.gini) }}</td>
+            <td>{{ "%.4f"|format(m.metrics.ks) }}</td>
+            <td>{{ "%.4f"|format(m.metrics.f1_class_1) }}</td>
+            <td>{{ "%.4f"|format(m.metrics.precision_class_1) }}</td>
+            <td>{{ "%.4f"|format(m.metrics.recall_class_1) }}</td>
+            <td>{{ "%.4f"|format(m.metrics.accuracy) }}</td>
+            <td>{{ "%.0f"|format(m.training_time_sec) }}&nbsp;с</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Визуальное сравнение ROC-AUC -->
+  <section class="section">
+    <h2>Визуальное сравнение по ROC-AUC</h2>
+    {% set max_auc = comparison.models|map(attribute='metrics.roc_auc')|max %}
+    {% set min_auc = comparison.models|map(attribute='metrics.roc_auc')|min %}
+    {% set range = (max_auc - min_auc) if (max_auc - min_auc) > 0 else 1 %}
+    <div class="auc-bars">
+      {% for m in comparison.models %}
+      {% set width = ((m.metrics.roc_auc - min_auc) / range * 85 + 15)|round(1) %}
+      <div class="auc-bar-row">
+        <div class="auc-bar-label">
+          {{ m.short_name }}
+          {% if m.is_main %}<span class="dot dot-success"></span>{% endif %}
+        </div>
+        <div class="auc-bar-container">
+          <div class="auc-bar-fill {% if m.is_main %}fill-main{% endif %}" style="width: {{ width }}%;">
+            <span class="auc-bar-value">{{ "%.4f"|format(m.metrics.roc_auc) }}</span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- Описание моделей -->
+  <section class="section">
+    <h2>Описание моделей</h2>
+    <div class="models-grid">
+      {% for m in comparison.models %}
+      <div class="model-card {% if m.is_main %}model-card-main{% endif %}">
+        <div class="model-card-header">
+          <h3>{{ m.short_name }}</h3>
+          {% if m.is_main %}<span class="badge-mini badge-info">основная</span>{% endif %}
+        </div>
+        <p class="model-desc">{{ m.description }}</p>
+        <div class="model-mini-metrics">
+          <div><span>AUC</span><strong>{{ "%.4f"|format(m.metrics.roc_auc) }}</strong></div>
+          <div><span>F1</span><strong>{{ "%.4f"|format(m.metrics.f1_class_1) }}</strong></div>
+          <div><span>Время</span><strong>{{ "%.0f"|format(m.training_time_sec) }}с</strong></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- Выводы -->
+  <section class="section">
+    <h2>Выводы и обоснование выбора</h2>
+    <div class="conclusions">
+      <p>
+        Сравнительный анализ проведён на одинаковой тестовой выборке из
+        <strong>{{ "{:,}".format(comparison.test_samples).replace(",", " ") }} записей</strong>,
+        не использовавшейся при обучении ни одной из моделей.
+        Все альтернативные методы обучены на тех же признаках, что и нейронная сеть,
+        с применением одинакового StandardScaler и взвешивания классов.
+      </p>
+      <ul>
+        <li>
+          <strong>Лучший результат</strong> по основной метрике ROC-AUC показала модель
+          <em>{{ comparison.summary.best_model }}</em>
+          с значением <strong>{{ "%.4f"|format(comparison.summary.best_roc_auc) }}</strong>.
+        </li>
+        <li>
+          {% if comparison.summary.nn_advantage_over_best_alt > 0 %}
+          Преимущество нейронной сети над лучшим из альтернативных методов
+          (<em>{{ comparison.summary.best_alternative }}</em>) составляет
+          <strong>+{{ "%.4f"|format(comparison.summary.nn_advantage_over_best_alt) }}</strong> по ROC-AUC,
+          что подтверждает целесообразность использования нейросетевого подхода
+          в задаче кредитного скоринга.
+          {% else %}
+          На данном датасете нейронная сеть демонстрирует результаты, сопоставимые
+          с лучшим из альтернативных методов
+          (<em>{{ comparison.summary.best_alternative }}</em>).
+          Это типичная ситуация для табличных данных, где градиентный бустинг
+          часто оказывается сильным конкурентом нейросетям.
+          {% endif %}
+        </li>
+        <li>
+          Использование <strong>нейронной сети с архитектурой
+          {{ metadata.n_features }}-{{ metadata.hyperparameters.units_1 }}-{{ metadata.hyperparameters.units_2 }}-{{ metadata.hyperparameters.units_3 }}-1</strong>
+          обусловлено возможностью применения BatchNormalization, Dropout
+          и адаптивных оптимизаторов, что обеспечивает устойчивость к переобучению
+          и хорошее обобщение на новые данные.
+        </li>
+        <li>
+          Для регуляторной отчётности и обеспечения интерпретируемости решений
+          модель может быть дополнена методом
+          <strong>SHAP (SHapley Additive exPlanations)</strong>,
+          позволяющим объяснить вклад каждого признака в конечное решение.
+        </li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>Кредитный скоринг · Сравнительный анализ · {{ comparison.created_at }}</p>
+  </div>
+</footer>
+
+</body>
+</html>

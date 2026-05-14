@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Анализ признаков недоступен</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="header">
+  <div class="container">
+    <div class="header-content">
+      <div>
+        <h1>Анализ признаков</h1>
+        <p class="subtitle">Данные о распределениях признаков недоступны</p>
+      </div>
+      <nav class="nav">
+        <a href="/" class="nav-link">Скоринг</a>
+        <a href="/dashboard" class="nav-link">Дашборд</a>
+        <a href="/comparison" class="nav-link">Сравнение</a>
+        <a href="/features" class="nav-link active">Признаки</a>
+      </nav>
+    </div>
+  </div>
+</header>
+<div class="container">
+  <section class="section">
+    <h2>Файл feature_stats.json не найден</h2>
+    <p>
+      Чтобы построить графики распределения признаков (до и после нормализации),
+      статистику и корреляционную матрицу, запустите скрипт анализа:
+    </p>
+    <pre style="background:#1e293b;color:#e2e8f0;padding:16px;border-radius:8px;margin:20px 0;">python analyze_features.py</pre>
+    <p>
+      Скрипт построит {{ metadata.n_features }} графиков (по одному на признак)
+      и сводные диаграммы. После этого страница будет автоматически работать.
+    </p>
+    <p>
+      <strong>Обязательное условие:</strong> модель должна быть уже обучена
+      (запущен <code>python train_model.py</code>).
+    </p>
+  </section>
+</div>
+</body>
+</html>
